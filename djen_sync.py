@@ -135,7 +135,11 @@ def separar_partes(destinatarios: list[dict]) -> tuple[str, str]:
 def consultar_djen(data_consulta: datetime.date, tentativa: int = 1) -> list[dict]:
     """Consulta o DJEN para a OAB configurada, na data informada.
     Trata o rate limit (HTTP 429) esperando 60s e tentando novamente, como
-    orientado pela própria documentação da API."""
+    orientado pela própria documentação da API.
+
+    Envia cabeçalhos de navegador porque o servidor do CNJ bloqueia
+    requisições "genéricas" (sem User-Agent reconhecível) com HTTP 403 —
+    isso foi observado na prática rodando a partir do GitHub Actions."""
     params = {
         "numeroOab": NUMERO_OAB,
         "ufOab": UF_OAB,
@@ -145,13 +149,30 @@ def consultar_djen(data_consulta: datetime.date, tentativa: int = 1) -> list[dic
         "pagina": 1,
     }
     url = f"{DJEN_API}?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/json",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+        ),
+        "Accept-Language": "pt-BR,pt;q=0.9",
+        "Referer": "https://comunica.pje.jus.br/",
+        "Origin": "https://comunica.pje.jus.br",
+    })
 
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             body = json.loads(resp.read().decode("utf-8"))
             return body.get("items", [])
     except urllib.error.HTTPError as e:
+        corpo_erro = ""
+        try:
+            corpo_erro = e.read().decode("utf-8", errors="replace")[:2000]
+        except Exception:
+            pass
+        print(f"Erro HTTP {e.code} ao consultar o DJEN.", file=sys.stderr)
+        if corpo_erro:
+            print(f"Corpo da resposta: {corpo_erro}", file=sys.stderr)
         if e.code == 429 and tentativa <= 3:
             print(f"Rate limit atingido (429). Aguardando 60s — tentativa {tentativa}/3.")
             time.sleep(60)
