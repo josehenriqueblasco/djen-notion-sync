@@ -1,0 +1,4 @@
+# Este script usa apenas a biblioteca padrão do Python (urllib, json, datetime).
+# Não há dependências externas a instalar — isso reduz pontos de falha
+# no GitHub Actions e evita depender de pacotes de terceiros para uma
+# tarefa que roda sem supervisão todos os dias.
