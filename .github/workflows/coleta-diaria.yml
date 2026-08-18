@@ -1,0 +1,28 @@
+name: Coleta diária DJEN -> Notion
+
+on:
+  schedule:
+    # 09:00 no horário de Brasília (UTC-3) = 12:00 UTC.
+    # O GitHub Actions só agenda em UTC, por isso o ajuste.
+    - cron: "0 12 * * 1-5"
+  workflow_dispatch: {}  # permite rodar manualmente pelo botão "Run workflow"
+
+jobs:
+  coleta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rodar a coleta
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          NUMERO_OAB: "109280"
+          UF_OAB: "RS"
+        run: python djen_sync.py
